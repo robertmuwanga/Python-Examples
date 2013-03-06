@@ -1,81 +1,73 @@
 #!/usr/bin/env python
-
-import threading, random
-from time import ctime, sleep
-
-'''
-1. Populate the source array
-2. Define the formula method. 
-3. For each new thread, have it named.
-4. For each thread, 
-4.1. have it acquire the lock, read the value and release the lock;
-4.2. have it perform the necessary factorial computation (use recursion).
-4.3. have it acquire the second lock to write to a second array storing all the computed values
-and then release the lock.
-4.4. have the thread print that it is completed and its name/number.
-4.5. Repeat the process again until number of items in the 
-
-'''
-
+ 
+import threading, random        # threading module has the Thread class from which we will inherit
+                                # random module has the random method we will use to create random sleep times for threads.
+ 
+from time import ctime, sleep   # ctime to record time for computation of threads
+                                # sleep to put the threads to sleep at random times to slow down the threads.
+ 
 # Global variables
-# MAX_THREAD_NUM = 5
-SOURCE_INPUT_POS = 0
-sourceInput = [x for x in range(10)]
-sourceOutput = []
-
-###################################################################################################
-# Lock 0 and 1 are for reading and writing to sourceInput and sourceOutput arrays respectively,   #
-# Lock 2 is for creating new threads when the number of threads is not at MAX_THREAD_NUM          #
-#                                                                                                 #
-
+SOURCE_INPUT_POS = 0                  # Keeps track of the next item to be read from the source list.
+sourceInput = [x for x in range(10)]  # Source list for data that will have factorials computed against.
+sourceOutput = []                     # List (empty for now) with computed factorials.
+ 
+#############################################################################################################
+# Locks will be used to lock reading and writing from the sourceInput and sourceOutput lists respectively.  #
+# The locks will help to reduce possible deadlock and synchronisation issues caused by threads accessing    #
+# the same list.                                                                                            #
+ 
 locks = []
-locks.append(threading.RLock()) # Lock 0 for reading 
-locks.append(threading.RLock()) # Lock 1 for writing
+locks.append(threading.RLock()) # Lock 0 for reading from sourceInput List
+locks.append(threading.RLock()) # Lock 1 for writing to sourceOutput List
                                                                                                  
-###################################################################################################
+#############################################################################################################
 
-
-class MyThread(threading.Thread):
-    def __init__(self,num):
-        threading.Thread.__init__(self)
-        self.num = num
-        self.name = "Thread-%d", self.num
+class MyThread(threading.Thread):               # Create a new class that inherits from the Thread class in the threading module
+    def __init__(self,num):                     # Override the inherited __init__ method. Method takes a number used in naming.
+        threading.Thread.__init__(self)         # Initialise the parent __init__ method.
+        self.num = num                          
+        self.name = "Thread-", self.num
         
     def run(self):
-        global locks
-        global SOURCE_INPUT_POS
+        global locks                            # The keyword global is used to give access to the locks and SOUCE_INPUT_POS variable
+        global SOURCE_INPUT_POS                 # declared at the global level. 
         
-        # Acquire lock for reading sourceInput array, read from array, increase reading pointer by 1, release lock
+        # Acquire lock for reading sourceInput list. Then read from array, increase reading pointer (SOUCE_INPUT_POS) by 1 to point 
+        # to the next element to be read by the next thread and finally release lock for the next thread.
         locks[0].acquire()        
         element = sourceInput[SOURCE_INPUT_POS]
         SOURCE_INPUT_POS += 1        
         locks[0].release()
-
-        print 'Have read %d from the sourceInput list.', element
-
-        factorialValue = self.factorial()
+ 
+        print 'Have read ', element, ' from the sourceInput list.'    # To help us know where we are....
+ 
+        factorialValue = self.factorial(element)   # Perform the factorial operation on the element and return the result.
         
-        #Acquire lock for writing to sourceOutput array, write to array, release lock.
+        # Acquire lock for writing to sourceOutput list. Then append the factorial result to the list and then release the lock.
+        # As we are appending to the list, there is no need to keep track of the next write position into the array.
         locks[1].acquire()
         sourceOutput.append(factorialValue)
         locks[1].release()
         
-        print self.name, " is completed." # thread is completed.
+        print self.name, " is completed." # Notification that the thread has completed its operations.
         
-    def factorial(self):
+    def factorial(self, element):    # Definition the factorial function.
         product = 1
-        for i in range(1, self.num+1): #range is from 1 and includes limit
+        for i in range(1, element+1): # Range is from 1 and needs to be incremented by 1 to include the limit
             product *= i
         
         return product
+
+
+#### main execution section of the program #####
  
-    
-print 'Starting the main thread at: ', ctime()
-
+print 'Starting the main thread at: ', ctime()          # Recording the time when we started the main thread.
+ 
 while(SOURCE_INPUT_POS < len(sourceInput)):
-    MyThread(sourceInput[SOURCE_INPUT_POS]).start()
+    MyThread(sourceInput[SOURCE_INPUT_POS]).start()     # Create a new thread for each element of the source list.
     
-    sleep(random.random()* 5)
-
-print 'The computed output: \n', sourceOutput
-print 'Main thread completed at: ', ctime()        # This is going to print before threads complete.
+    sleep(random.random()* 5)                           # Random sleep time to slow down the operations of the threads so we can see 
+                                                        # what is happening. 
+ 
+print 'The computed output: \n', sourceOutput           # 
+print 'Main thread completed at: ', ctime()             # Recording the time when we finished executing the threads.
